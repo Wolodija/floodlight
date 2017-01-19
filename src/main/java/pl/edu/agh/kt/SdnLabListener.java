@@ -9,8 +9,11 @@ import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
 import org.projectfloodlight.openflow.protocol.OFMessage;
+import org.projectfloodlight.openflow.protocol.OFPacketIn;
 import org.projectfloodlight.openflow.protocol.OFType;
+import org.projectfloodlight.openflow.protocol.action.OFActionPopMpls;
 import org.projectfloodlight.openflow.types.IPv4Address;
+import org.projectfloodlight.openflow.types.OFPort;
 import org.projectfloodlight.openflow.types.TransportPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +46,17 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener{
     public Command receive(IOFSwitch sw, OFMessage msg, FloodlightContext cntx) {
         logger.info("************* NEW PACKET IN *************");
         PacketExtractor extractor = new PacketExtractor(cntx);
+
+        OFPacketIn pin = (OFPacketIn) msg;
+        OFPort outPort = OFPort.of(0);
+        if (pin.getInPort() == OFPort.of(1)){
+            outPort = OFPort.of(2);
+        }
+        else{
+            outPort = OFPort.of(1);
+        }
+
+        Flows.simpleAdd(sw, pin, cntx, outPort);
         return Command.CONTINUE;
     }
 
