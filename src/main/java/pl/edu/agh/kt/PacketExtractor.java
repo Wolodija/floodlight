@@ -5,6 +5,7 @@ import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.packet.*;
 import org.projectfloodlight.openflow.protocol.OFMessage;
 import org.projectfloodlight.openflow.types.EthType;
+import org.projectfloodlight.openflow.types.IpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +29,7 @@ public class PacketExtractor {
         this.extractEth();
     }
 
-    private void extractEth() {
+    public String extractEth() {
         eth = IFloodlightProviderService.bcStore.get(cntx,
                 IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
 
@@ -38,20 +39,37 @@ public class PacketExtractor {
 
         if (eth.getEtherType() == EthType.ARP) {
             arp = (ARP) eth.getPayload();
-            extractArp(arp);
+            return extractArp(arp);
         }
         if (eth.getEtherType() == EthType.IPv4) {
             ipv4 = (IPv4) eth.getPayload();
-            extractIp(ipv4);
+            if (ipv4.getProtocol() == IpProtocol.TCP) {
+                return extractTCP(ipv4);
+            }
+            else if (ipv4.getProtocol() == IpProtocol.ICMP) {
+                return extractICMP(ipv4, eth);
+            }
         }
+        return "";
 
     }
 
-    private void extractArp(ARP arp) {
+    private String extractArp(ARP arp) {
         logger.info("ARP: {}", arp.toString());
+        return "ARP" + arp.getSenderHardwareAddress().toString() + ";" + arp.getTargetHardwareAddress() +
+                ";" + arp.getSenderProtocolAddress().toString() + ";" + arp.getTargetProtocolAddress().toString();
     }
 
-    private void extractIp(IPv4 ipv4) {
+    private String extractTCP(IPv4 ipv4) {
         logger.info("IPv4: {}", ipv4.getSourceAddress().toString());
+        return "IP4" + ipv4.getSourceAddress().toString() + ";" + ipv4.getDestinationAddress().toString() + ";"
+                + ((TCP)ipv4.getPayload()).getSourcePort().toString() + ";"
+                + ((TCP)ipv4.getPayload()).getDestinationPort().toString();
+    }
+
+    private String extractICMP(IPv4 ipv4, Ethernet eth) {
+        logger.info("IPv4: {}", ipv4.getSourceAddress().toString());
+        return "ICM" + eth.getSourceMACAddress().toString() + ";" + eth.getDestinationMACAddress().toString() + ";"
+                + ipv4.getSourceAddress().toString() + ";" + ipv4.getDestinationAddress().toString();
     }
 }
